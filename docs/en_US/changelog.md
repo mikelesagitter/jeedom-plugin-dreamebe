@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Compact dashboard tile.** The equipment is displayed as grouped panels:
+  state and battery, settings of the next cleaning, launch (whole home, or a
+  room picked from a list), application shortcut picked from a list, controls,
+  and a collapsed map. A room started from the tile is cleaned with the settings
+  shown. Untick "Widget template" in the equipment's advanced configuration to
+  get the core layout back.
+- `nettoyer_pieces` accepts a fourth field, the water or humidity level.
 - **Application shortcuts.** Cleaning programmes saved in DreameHome become
   commands: one per shortcut, plus `lancer_raccourci`, which accepts a name or an
   identifier, and `raccourcis`, which lists them. The robot receives the

@@ -536,6 +536,34 @@ lus dans la carte. Le plugin ne les impose pas : l'application reste l'endroit o
 l'on décide que la cuisine se lave et que la chambre s'aspire. L'ordre de passage
 entre les pièces se règle lui aussi dans l'application.
 
+Un quatrième champ, facultatif lui aussi, fixe le niveau d'eau ou d'humidité de
+la serpillière, de 1 à 3 : `Cuisine | 1 | 2 | 3`.
+
+## La tuile du tableau de bord
+
+Sur le tableau de bord, le robot s'affiche dans une tuile compacte, en
+cartouches :
+
+- **Robot** et **Batterie** : ce qu'il fait, l'avancement pendant un nettoyage,
+  l'activité de la station, et l'erreur s'il y en a une.
+- **Réglages du prochain nettoyage** : puissance, humidité (ou niveau d'eau) et
+  mode. Un réglage part au robot dès qu'il est choisi.
+- **Lancer avec ces réglages** : tout le logement, ou une pièce choisie dans la
+  liste. La pièce est nettoyée avec la puissance et l'humidité affichées, et non
+  avec le réglage par pièce de l'application.
+- **Programme de l'application** : un raccourci choisi dans la liste, puis
+  **Lancer programme**. Un programme applique ses propres réglages.
+- **Pendant le nettoyage** : pause ou reprise, arrêt, retour à la station,
+  localisation.
+- **Carte** : repliée, elle n'est chargée que lorsqu'on la déplie.
+
+Le mobile garde la présentation du coeur. Pour la retrouver aussi sur le tableau
+de bord, décochez **Template de widget** dans la configuration avancée de
+l'équipement.
+
+Les icônes des réglages viennent de Tasshack/dreame-vacuum (licence MIT), voir
+`core/img/NOTICE.md`.
+
 ## Nettoyer une zone
 
 `nettoyer_zone` attend un rectangle, en **millimètres dans le repère de la

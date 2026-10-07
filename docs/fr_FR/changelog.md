@@ -2,6 +2,15 @@
 
 ## Non publié
 
+- **Tuile compacte sur le tableau de bord.** L'équipement s'affiche en cartouches :
+  état et batterie, réglages du prochain nettoyage (puissance, humidité, mode,
+  avec leur icône), lancement — tout le logement, ou une pièce choisie dans une
+  liste —, programme de l'application choisi dans une liste, commandes du
+  nettoyage en cours, et carte repliée. Lancée depuis la tuile, une pièce est
+  nettoyée avec les réglages affichés. Pour revenir à la présentation du coeur,
+  décocher « Template de widget » dans la configuration avancée de l'équipement.
+- `nettoyer_pieces` accepte un quatrième champ, le niveau d'eau ou d'humidité :
+  « Cuisine | 2 | 3 | 1 ».
 - **Raccourcis de l'application.** Les programmes de nettoyage enregistrés dans
   DreameHome deviennent des commandes : une par raccourci (« Raccourci : … »),
   plus `lancer_raccourci`, qui accepte un nom ou un identifiant, et `raccourcis`,

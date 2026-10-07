@@ -2181,6 +2181,127 @@ class dreamebe extends eqLogic {
     }
 
     /* ------------------------------------------------------------------ *
+     * Tuile du tableau de bord
+     * ------------------------------------------------------------------ */
+
+    /*
+     * La tuile compacte.
+     *
+     * Une case par commande donne une tuile haute comme l'écran, où trois
+     * listes déroulantes et une douzaine de boutons se disputent l'attention.
+     * Celle-ci regroupe par intention — où en est le robot, avec quels
+     * réglages, que lancer, comment l'interrompre — et replie la carte.
+     *
+     * Le cadre reste celui du coeur : titre, liens et redimensionnement
+     * suivent ses évolutions sans qu'il faille les recopier ici. Seul le
+     * contenu est remplacé, et seulement sur le tableau de bord : le mobile
+     * garde la présentation du coeur. Qui la préfère aussi sur le tableau de
+     * bord décoche « Template de widget » dans la configuration avancée de
+     * l'équipement — c'est le réglage que le coeur prévoit pour cela.
+     */
+    public function toHtml($_version = 'dashboard') {
+        if (jeedom::versionAlias($_version) != 'dashboard' || $this->getDisplay('widgetTmpl', 1) == 0) {
+            return parent::toHtml($_version);
+        }
+        $body = getTemplate('core', 'dashboard', 'dreamebe', 'dreamebe');
+        if ($body == '') {
+            return parent::toHtml($_version);
+        }
+        $replace = $this->preToHtml($_version);
+        if (!is_array($replace)) {
+            return $replace;
+        }
+        /* La largeur par défaut du coeur est trop juste pour une liste et son
+         * bouton côte à côte. Celle que l'utilisateur a réglée lui appartient. */
+        if ($this->getDisplay('width', 'auto') == 'auto') {
+            $replace['#width#'] = '310px';
+        }
+        $replace['#eqLogic_class#'] = 'eqLogic_layout_default';
+        $replace['#calledFrom#'] = __CLASS__;
+        /* La configuration voyage en JSON dans un attribut, échappée une fois
+         * pour toutes : aucun nom de pièce ou de raccourci n'est jamais posé
+         * tel quel dans le HTML ni dans le script. */
+        $replace['#cmd#'] = strtr($body, array(
+            '#uid#' => $replace['#uid#'],
+            '#config#' => htmlspecialchars(json_encode($this->widgetConfig(),
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'),
+        ));
+        return $this->postToHtml($_version, template_replace($replace, getTemplate('core', 'dashboard', 'eqLogic')));
+    }
+
+    /* Ce que la tuile compacte a besoin de savoir : les commandes qu'elle lit,
+     * celles qu'elle déclenche, et les listes qu'elle propose. Une commande
+     * absente — le robot ne la gère pas — retire simplement ce qui en dépend. */
+    private function widgetConfig() {
+        $water = $this->hasWashBase() ? 'humidite' : 'eau';
+
+        $info = array();
+        foreach (array('etat', 'code_etat', 'batterie', 'en_charge', 'en_ligne', 'erreur', 'en_erreur',
+                       'en_alerte', 'station', 'en_activite', 'progression', 'surface', 'duree',
+                       'aspiration', 'mode', $water, 'carte') as $logicalId) {
+            $cmd = $this->getCmd('info', $logicalId);
+            if (is_object($cmd)) {
+                $info[$logicalId] = array('id' => $cmd->getId(), 'value' => $cmd->execCmd());
+            }
+        }
+
+        $action = array();
+        foreach (array('all' => 'demarrer', 'rooms' => 'nettoyer_pieces', 'program' => 'lancer_raccourci',
+                       'pause' => 'pause', 'resume' => 'reprendre', 'stop' => 'arreter',
+                       'dock' => 'retour_station', 'locate' => 'localiser') as $key => $logicalId) {
+            $cmd = $this->getCmd('action', $logicalId);
+            if (is_object($cmd)) {
+                $action[$key] = $cmd->getId();
+            }
+        }
+
+        $settings = array();
+        foreach (array(
+            array('aspiration', 'aspiration', __('Puissance', __FILE__), 'regler_aspiration'),
+            array($water, 'humidite', $this->hasWashBase() ? __('Humidité', __FILE__) : __('Eau', __FILE__),
+                  'regler_' . $water),
+            array('mode', 'mode', __('Mode', __FILE__), 'regler_mode'),
+        ) as $setting) {
+            $cmd = $this->getCmd('action', $setting[3]);
+            if (!is_object($cmd) || !isset($info[$setting[0]])) {
+                continue;
+            }
+            $options = array();
+            foreach (explode(';', (string) $cmd->getConfiguration('listValue', '')) as $entry) {
+                $pair = explode('|', $entry, 2);
+                if (count($pair) == 2) {
+                    $options[] = array(trim($pair[0]), trim($pair[1]));
+                }
+            }
+            if (empty($options)) {
+                continue;
+            }
+            $action[$setting[3]] = $cmd->getId();
+            $settings[] = array('key' => $setting[0], 'icon' => $setting[1], 'label' => $setting[2],
+                                'action' => $setting[3], 'options' => $options);
+        }
+
+        $rooms = array();
+        foreach ($this->rooms() as $room) {
+            $rooms[] = array((int) $room['id'], (string) $room['name']);
+        }
+        $shortcuts = array();
+        foreach ($this->shortcuts() as $shortcut) {
+            $shortcuts[] = array((int) $shortcut['id'], (string) $shortcut['name']);
+        }
+
+        return array(
+            'info' => $info,
+            'action' => $action,
+            'settings' => $settings,
+            'waterKey' => $water,
+            'rooms' => $rooms,
+            'shortcuts' => $shortcuts,
+            'stationIdle' => self::label(dreamebeSpec::$washBaseStatus, 0),
+        );
+    }
+
+    /* ------------------------------------------------------------------ *
      * Santé
      * ------------------------------------------------------------------ */
 
@@ -2379,7 +2500,7 @@ class dreamebeCmd extends cmd {
     /*
      * « Cuisine, Salon » nettoie ces deux pièces une fois, au réglage du robot.
      * « Cuisine, Salon | 2 » y passe deux fois. « Cuisine | 2 | 3 » y passe deux
-     * fois en Turbo.
+     * fois en Turbo, et « Cuisine | 2 | 3 | 1 » de même, serpillière peu humide.
      *
      * La barre verticale plutôt qu'une virgule : les noms de pièces en
      * contiennent déjà, et il faut bien séparer la liste de ses paramètres.
@@ -2389,7 +2510,8 @@ class dreamebeCmd extends cmd {
         $rooms = self::roomList($_eqLogic, array_shift($parts));
         $repeats = isset($parts[0]) && trim($parts[0]) !== '' ? (int) trim($parts[0]) : 1;
         $suction = isset($parts[1]) && trim($parts[1]) !== '' ? (int) trim($parts[1]) : null;
-        return $_eqLogic->commandCleanRooms($rooms, $repeats, $suction);
+        $water = isset($parts[2]) && trim($parts[2]) !== '' ? (int) trim($parts[2]) : null;
+        return $_eqLogic->commandCleanRooms($rooms, $repeats, $suction, $water);
     }
 
     /* Un identifiant ou un nom, comme pour les pièces : « 32 » autant que
