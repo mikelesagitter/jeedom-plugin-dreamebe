@@ -546,8 +546,10 @@ cartouches :
 
 - **Robot** et **Batterie** : ce qu'il fait, l'avancement pendant un nettoyage,
   l'activité de la station, et l'erreur s'il y en a une.
-- **Réglages du prochain nettoyage** : puissance, humidité (ou niveau d'eau) et
-  mode. Un réglage part au robot dès qu'il est choisi.
+- **Réglages du prochain nettoyage** : mode, puissance et humidité (ou niveau
+  d'eau). Un réglage part au robot dès qu'il est choisi. Celui que le mode rend
+  sans objet est grisé : l'humidité en aspiration seule, la puissance en lavage
+  seul.
 - **Lancer avec ces réglages** : tout le logement, ou une pièce choisie dans la
   liste. La pièce est nettoyée avec la puissance et l'humidité affichées, et non
   avec le réglage par pièce de l'application.

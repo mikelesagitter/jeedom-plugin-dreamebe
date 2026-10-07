@@ -2301,11 +2301,13 @@ class dreamebe extends eqLogic {
         }
 
         $settings = array();
+        /* Le mode d'abord : c'est lui qui décide si la puissance et l'humidité
+         * ont un sens, et la tuile grise celle qui n'en a pas. */
         foreach (array(
+            array('mode', 'mode', __('Mode', __FILE__), 'regler_mode'),
             array('aspiration', 'aspiration', __('Puissance', __FILE__), 'regler_aspiration'),
             array($water, 'humidite', $this->hasWashBase() ? __('Humidité', __FILE__) : __('Eau', __FILE__),
                   'regler_' . $water),
-            array('mode', 'mode', __('Mode', __FILE__), 'regler_mode'),
         ) as $setting) {
             $cmd = $this->getCmd('action', $setting[3]);
             if (!is_object($cmd) || !isset($info[$setting[0]])) {

@@ -82,6 +82,8 @@
 
           '.dreamebeCompact .dbSetting{display:flex;align-items:center;gap:7px}',
           '.dreamebeCompact .dbSetting+.dbSetting{margin-top:5px}',
+          '.dreamebeCompact .dbSetting.dbOff{opacity:.4}',
+          '.dreamebeCompact .dbSetting.dbOff .dbSelect{cursor:default}',
           '.dreamebeCompact .dbIco{flex:none;width:22px;height:22px;background-color:var(--txt-color);-webkit-mask:center/contain no-repeat;mask:center/contain no-repeat}',
           '.dreamebeCompact .dbSettingName{flex:none;width:60px;font-size:12px;white-space:nowrap}',
 
@@ -209,6 +211,7 @@
         line.appendChild(name)
         line.appendChild(select)
         settingsList.appendChild(line)
+        _setting.line = line
         _setting.ico = ico
         _setting.select = select
       })
@@ -265,6 +268,15 @@
       })
 
       /* --- Affichage ------------------------------------------------------ */
+
+      /* Un réglage que le mode choisi rend sans objet : l'humidité quand le
+         robot n'aspire que, la puissance quand il ne fait que laver. */
+      function settingUseless(_key) {
+        var mode = num(state.mode)
+        if (mode === 0) { return _key === cfg.waterKey }
+        if (mode === 1) { return _key === 'aspiration' }
+        return false
+      }
 
       function isPaused() {
         var code = num(state.code_etat)
@@ -329,6 +341,10 @@
           _setting.ico.style.webkitMaskImage = url
           _setting.ico.style.maskImage = url
           _setting.ico.style.visibility = url ? 'visible' : 'hidden'
+          var useless = settingUseless(_setting.key)
+          _setting.select.disabled = useless
+          _setting.select.title = useless ? '{{Sans effet dans ce mode}}' : _setting.label
+          _setting.line.classList.toggle('dbOff', useless)
         })
 
         var pause = q('[data-do="pause"]')
