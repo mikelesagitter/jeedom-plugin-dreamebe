@@ -1186,13 +1186,16 @@ class dreamebe extends eqLogic {
      * vivent dans les cartes sauvegardées, la position du robot dans la carte
      * courante, qui, elle, ne porte pas les noms.
      */
-    public function refreshMap() {
+    public function refreshMap($_fresh = false) {
         $device = $this->device();
         /* La valeur est tantôt une chaîne, tantôt une liste, tantôt une chaîne
          * contenant une liste JSON selon le micrologiciel. Traiter les trois
          * coûte quelques lignes ; parier coûte une carte qui ne s'affiche
          * jamais. */
-        $objectName = dreamebeMap::objectName($this->mapProperty('object_name'));
+        $objectName = $_fresh ? $this->requestMapFrame() : null;
+        if ($objectName === null) {
+            $objectName = dreamebeMap::objectName($this->mapProperty('object_name'));
+        }
         if ($objectName === null) {
             return false;
         }
@@ -1278,6 +1281,42 @@ class dreamebe extends eqLogic {
         clearstatcache(true, $path);
         $this->checkAndUpdateCmd('carte', self::mapUrl($this->getId()) . '&t=' . (int) filemtime($path));
         return true;
+    }
+
+    /*
+     * Demande au robot une carte complète, tout de suite.
+     *
+     * Sans cela, on ne lit que la dernière carte qu'il a bien voulu déposer :
+     * pendant un nettoyage, sa position peut dater de plusieurs minutes. C'est
+     * ce que fait l'application quand on ouvre sa carte. Le robot répond par le
+     * nom de l'objet qu'il vient de déposer.
+     *
+     * Réservé au suivi à l'écran : le cycle d'actualisation ne s'en sert pas,
+     * pour ne pas réveiller le robot toutes les quelques minutes. Un échec rend
+     * null, et l'appelant se rabat sur la dernière carte connue.
+     */
+    private function requestMapFrame() {
+        $action = dreamebeSpec::$actions['request_map'];
+        try {
+            $result = self::api()->action($this->device(), $action[0], $action[1], array(
+                array('piid' => dreamebeSpec::PIID_ARG_FRAME,
+                      'value' => '{"req_type":1,"frame_type":"I","force_type":1}'),
+            ));
+        } catch (dreamebeApiException $e) {
+            return null;
+        }
+        self::saveSession();
+        if (!is_array($result) || !isset($result['out']) || !is_array($result['out'])) {
+            return null;
+        }
+        $prop = dreamebeSpec::$properties['object_name'];
+        foreach ($result['out'] as $entry) {
+            if (is_array($entry) && isset($entry['piid']) && (int) $entry['piid'] === $prop[1]
+                && isset($entry['value'])) {
+                return dreamebeMap::objectName($entry['value']);
+            }
+        }
+        return null;
     }
 
     public static function mapDir() {
@@ -2291,6 +2330,8 @@ class dreamebe extends eqLogic {
         }
 
         return array(
+            'id' => (int) $this->getId(),
+            'name' => $this->getName(),
             'info' => $info,
             'action' => $action,
             'settings' => $settings,

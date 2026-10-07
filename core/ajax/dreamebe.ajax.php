@@ -113,7 +113,9 @@ try {
         /* Le verdict compte : une carte partielle, absente ou illisible ne
          * produit pas d'image, et annoncer « carte à jour » juste au-dessus
          * d'un « aucune carte » serait se contredire dans la même page. */
-        $rendered = $robot->refreshMap();
+        /* Avec fresh=1, le robot est prié de déposer une carte complète avant
+         * la lecture : c'est le suivi en direct de la tuile. */
+        $rendered = $robot->refreshMap(init('fresh') == 1);
         ajax::success(array(
             'rendered' => (bool) $rendered,
             'url' => dreamebe::mapUrl($robot->getId()) . '&t=' . time(),

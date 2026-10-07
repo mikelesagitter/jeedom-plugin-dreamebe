@@ -47,11 +47,7 @@
     </div>
   </div>
 
-  <details class="dbTile dbMap">
-    <summary class="dbLabel">{{Carte}}</summary>
-    <a class="dbMapLink" target="_blank" rel="noopener" title="{{Ouvrir la carte en grand}}"><img class="dbMapImg" alt=""></a>
-    <div class="dbHint dbMapNone">{{Aucune carte pour le moment.}}</div>
-  </details>
+  <button type="button" class="dbBtn dbMapBtn"><i class="fas fa-map"></i> {{Voir la carte}}</button>
 
   <script>
     (function () {
@@ -109,14 +105,25 @@
           '.dreamebeCompact .dbIconBtn i{font-size:14px}',
           '.dreamebeCompact .dbIconBtn span{font-size:10.5px}',
 
-          '.dreamebeCompact .dbMap{padding-bottom:5px}',
-          '.dreamebeCompact .dbMap>summary{margin:0;cursor:pointer;list-style:none}',
-          '.dreamebeCompact .dbMap>summary::-webkit-details-marker{display:none}',
-          '.dreamebeCompact .dbMap>summary::before{content:"\\25B8\\00A0"}',
-          '.dreamebeCompact .dbMap[open]>summary::before{content:"\\25BE\\00A0"}',
-          '.dreamebeCompact .dbMap[open]>summary{margin-bottom:5px}',
-          '.dreamebeCompact .dbMapLink{display:block;line-height:0;border-radius:8px;overflow:hidden;background:#f6f7f9;border:1px solid rgba(128,128,128,.35)}',
-          '.dreamebeCompact .dbMapImg{display:block;width:100%;height:auto;max-height:340px;object-fit:contain}',
+          '.dreamebeCompact .dbMapBtn{width:100%;height:30px}',
+          '.dreamebeCompact .dbMapBtn i{margin-right:4px}',
+
+          /* La fenêtre de carte est posée sur <body>, hors de la tuile : elle
+             ne peut donc rien hériter de .dreamebeCompact. */
+          '.dreamebeMapPop{position:fixed;inset:0;z-index:5000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.6)}',
+          '.dreamebeMapPop .dmBox{display:flex;flex-direction:column;width:min(920px,100%);max-height:100%;border-radius:12px;overflow:hidden;color:var(--txt-color);background:var(--bg-modal-color,#eee);box-shadow:0 10px 40px rgba(0,0,0,.5)}',
+          '.dreamebeMapPop .dmHead{display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:15px;font-weight:700;border-bottom:1px solid rgba(128,128,128,.25)}',
+          '.dreamebeMapPop .dmTitle{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}',
+          '.dreamebeMapPop .dmState{font-weight:400;opacity:.75}',
+          '.dreamebeMapPop .dmClose{flex:none;width:30px;height:30px;padding:0;font-size:16px;color:var(--txt-color);background:rgba(128,128,128,.16);border:1px solid rgba(128,128,128,.5);border-radius:8px!important;cursor:pointer}',
+          '.dreamebeMapPop .dmBody{flex:1 1 auto;min-height:120px;display:flex;align-items:center;justify-content:center;padding:10px;background:#f6f7f9;overflow:hidden}',
+          '.dreamebeMapPop .dmImg{display:block;max-width:100%;max-height:calc(100vh - 170px);object-fit:contain}',
+          '.dreamebeMapPop .dmNone{color:#555;font-size:13px}',
+          '.dreamebeMapPop .dmFoot{display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:12px;border-top:1px solid rgba(128,128,128,.25)}',
+          '.dreamebeMapPop .dmDot{flex:none;width:8px;height:8px;border-radius:50%;background:rgba(128,128,128,.6)}',
+          '.dreamebeMapPop[data-live="1"] .dmDot{background:var(--al-success-color);animation:dreamebePulse 1.4s infinite}',
+          '.dreamebeMapPop [hidden]{display:none!important}',
+          '@keyframes dreamebePulse{50%{opacity:.25}}',
           '.dreamebeCompact [hidden]{display:none!important}'
         ].join('')
         document.head.appendChild(css)
@@ -231,7 +238,7 @@
         return n === null ? '' : n
       }
 
-      root.querySelectorAll('.dbBtn').forEach(function (_button) {
+      root.querySelectorAll('.dbBtn[data-do]').forEach(function (_button) {
         if (_button.dataset.do !== 'all' && _button.dataset.do !== 'room' && _button.dataset.do !== 'program'
             && !cfg.action[_button.dataset.do] && !(_button.dataset.do === 'pause' && cfg.action.resume)) {
           _button.hidden = true
@@ -332,29 +339,120 @@
           pause.querySelector('span').textContent = paused ? '{{Reprendre}}' : '{{Pause}}'
         }
 
-        renderMap()
+        if (pop) { popState() }
       }
+
+      /* --- Fenêtre de carte ----------------------------------------------- */
 
       /*
        * L'adresse de la carte est composée par le plugin et n'a qu'une forme
        * possible : la vérifier ferme la porte à tout ce qui n'est pas une
-       * carte servie par le passe-plat. L'image n'est chargée que tuile
-       * dépliée — c'est tout l'intérêt de la replier.
+       * carte servie par le passe-plat.
        */
-      var map = q('.dbMap')
-      function renderMap() {
-        var url = state.carte
-        var ok = (typeof url === 'string' && /^plugins\/dreamebe\/core\/php\/map\.php\?id=\d+&t=\d+$/.test(url))
-        q('.dbMapLink').hidden = !ok
-        q('.dbMapNone').hidden = ok
-        if (!ok || !map.open) { return }
-        if (q('.dbMapImg').getAttribute('src') !== url) {
-          q('.dbMapImg').setAttribute('src', url)
-          q('.dbMapLink').setAttribute('href', url)
-        }
+      function mapUrlOk(_url) {
+        return (typeof _url === 'string' && /^plugins\/dreamebe\/core\/php\/map\.php\?id=\d+&t=\d+$/.test(_url))
       }
-      if (!('carte' in state)) { map.hidden = true }
-      map.addEventListener('toggle', renderMap)
+
+      var pop = null
+      var popTimer = null
+      var popBusy = false
+      var LIVE_DELAY = 5000
+
+      function popState() {
+        var active = isOn(state.en_activite)
+        pop.setAttribute('data-live', active ? '1' : '0')
+        pop.querySelector('.dmState').textContent = state.etat ? ' — ' + state.etat : ''
+        /* Le robot vient de se mettre en route, fenêtre ouverte : le suivi
+           démarre de lui-même. */
+        if (active && !popTimer && !popBusy) { popRefresh() }
+      }
+
+      /* L'image n'est remplacée qu'une fois la nouvelle chargée : sans cela,
+         la carte clignoterait à chaque passe. */
+      function popShow(_url) {
+        if (!pop || !mapUrlOk(_url)) { return }
+        var img = pop.querySelector('.dmImg')
+        var next = new Image()
+        next.onload = function () {
+          if (!pop) { return }
+          img.src = _url
+          img.hidden = false
+          pop.querySelector('.dmNone').hidden = true
+        }
+        next.src = _url
+      }
+
+      /*
+       * Une passe du suivi : le robot dépose une carte complète, le plugin la
+       * redessine, la fenêtre l'affiche. La passe suivante n'est programmée
+       * qu'à la fin de celle-ci, et seulement pendant un nettoyage — au repos,
+       * une seule suffit, le robot ne bouge pas.
+       */
+      function popRefresh() {
+        if (!pop || popBusy) { return }
+        popTimer = null
+        if (document.hidden) { popTimer = setTimeout(popRefresh, LIVE_DELAY); return }
+        popBusy = true
+        var done = function (_note) {
+          popBusy = false
+          if (!pop) { return }
+          pop.querySelector('.dmNote').textContent = _note
+          if (isOn(state.en_activite)) { popTimer = setTimeout(popRefresh, LIVE_DELAY) }
+        }
+        domUtils.ajax({
+          type: 'POST',
+          url: 'plugins/dreamebe/core/ajax/dreamebe.ajax.php',
+          data: { action: 'map', id: cfg.id, fresh: 1 },
+          dataType: 'json',
+          global: false,
+          error: function () { done('{{Carte non actualisée : dernière carte connue.}}') },
+          success: function (_data) {
+            if (!_data || _data.state !== 'ok' || !_data.result) {
+              return done('{{Carte non actualisée : dernière carte connue.}}')
+            }
+            popShow(_data.result.url)
+            var now = new Date().toLocaleTimeString()
+            done(isOn(state.en_activite)
+              ? '{{Suivi en direct — position relevée à}} ' + now
+              : '{{Position relevée à}} ' + now)
+          }
+        })
+      }
+
+      function popClose() {
+        if (!pop) { return }
+        clearTimeout(popTimer)
+        popTimer = null
+        document.removeEventListener('keydown', popKey)
+        pop.remove()
+        pop = null
+      }
+      function popKey(_event) { if (_event.key === 'Escape') { popClose() } }
+
+      function popOpen() {
+        if (pop) { return }
+        pop = document.createElement('div')
+        pop.className = 'dreamebeMapPop'
+        pop.innerHTML = '<div class="dmBox">'
+          + '<div class="dmHead"><i class="fas fa-map"></i><span class="dmTitle"><span class="dmName"></span><span class="dmState"></span></span>'
+          + '<button type="button" class="dmClose" title="{{Fermer}}"><i class="fas fa-times"></i></button></div>'
+          + '<div class="dmBody"><img class="dmImg" alt="" hidden><span class="dmNone">{{Chargement de la carte…}}</span></div>'
+          + '<div class="dmFoot"><span class="dmDot"></span><span class="dmNote"></span></div>'
+          + '</div>'
+        pop.querySelector('.dmName').textContent = cfg.name
+        pop.querySelector('.dmClose').addEventListener('click', popClose)
+        pop.addEventListener('click', function (_event) { if (_event.target === pop) { popClose() } })
+        document.addEventListener('keydown', popKey)
+        document.body.appendChild(pop)
+        popShow(state.carte)
+        if (!mapUrlOk(state.carte)) { pop.querySelector('.dmNone').textContent = '{{Aucune carte pour le moment.}}' }
+        popRefresh()
+        popState()
+      }
+
+      var mapBtn = q('.dbMapBtn')
+      if (!('carte' in state)) { mapBtn.hidden = true }
+      mapBtn.addEventListener('click', popOpen)
 
       Object.keys(cfg.info).forEach(function (_key) {
         jeedom.cmd.addUpdateFunction(cfg.info[_key].id, function (_options) {

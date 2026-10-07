@@ -229,6 +229,8 @@ class dreamebeSpec {
      */
     const PIID_ARG_STATUS = 1;
     const PIID_ARG_PROPERTIES = 10;
+    /* Celui de request_map : la description de la trame de carte demandée. */
+    const PIID_ARG_FRAME = 2;
 
     /* Les valeurs de statut que start_custom accepte comme mode de départ. */
     const STATUS_SEGMENT_CLEANING = 18;

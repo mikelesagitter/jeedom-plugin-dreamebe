@@ -555,7 +555,11 @@ cartouches :
   **Lancer programme**. Un programme applique ses propres réglages.
 - **Pendant le nettoyage** : pause ou reprise, arrêt, retour à la station,
   localisation.
-- **Carte** : repliée, elle n'est chargée que lorsqu'on la déplie.
+- **Voir la carte** : ouvre la carte dans une fenêtre. À l'ouverture, le robot
+  est prié de déposer une carte à jour ; pendant un nettoyage, la demande est
+  renouvelée toutes les cinq secondes environ, et l'on voit le robot se déplacer.
+  Ce suivi n'a lieu que fenêtre ouverte, et demande un compte administrateur :
+  les autres voient la dernière carte connue.
 
 Le mobile garde la présentation du coeur. Pour la retrouver aussi sur le tableau
 de bord, décochez **Template de widget** dans la configuration avancée de
