@@ -2260,6 +2260,12 @@ class dreamebe extends eqLogic {
         /* La configuration voyage en JSON dans un attribut, échappée une fois
          * pour toutes : aucun nom de pièce ou de raccourci n'est jamais posé
          * tel quel dans le HTML ni dans le script. */
+        /* Le gabarit d'un équipement n'est pas traduit par le coeur, au
+         * contraire de celui d'une commande : sans cette passe, les libellés
+         * s'affichent entre accolades, y compris en français. Elle a lieu
+         * avant l'insertion de la configuration, pour qu'un nom de pièce ne
+         * puisse jamais être pris pour une clé de traduction. */
+        $body = translate::exec($body, 'plugins/dreamebe/core/template/dashboard/dreamebe.html');
         $replace['#cmd#'] = strtr($body, array(
             '#uid#' => $replace['#uid#'],
             '#config#' => htmlspecialchars(json_encode($this->widgetConfig(),
